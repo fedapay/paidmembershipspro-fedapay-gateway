@@ -121,8 +121,8 @@ class PMProGateway_fedapay extends PMProGateway
         add_filter('pmpro_payment_options', array('PMProGateway_fedapay', 'pmpro_payment_options'));
         add_filter('pmpro_payment_option_fields', array('PMProGateway_fedapay', 'pmpro_payment_option_fields'), 10, 2);
 
-        add_action('wp_ajax_fedapay_webhook', array('PMProGateway_Paystack', 'fedapay_webhook'));
-        add_action('wp_ajax_nopriv_fedapay_webhook', array('PMProGateway_Paystack', 'fedapay_webhook'));
+        add_action('wp_ajax_fedapay_webhook', array('PMProGateway_fedapay', 'fedapay_webhook'));
+        add_action('wp_ajax_nopriv_fedapay_webhook', array('PMProGateway_fedapay', 'fedapay_webhook'));
 
         // //code to add at checkout if fedapay is the current gateway
         $gateway = pmpro_getOption('gateway');
@@ -230,12 +230,12 @@ class PMProGateway_fedapay extends PMProGateway
             <td>
                 <p>
                     <?php
-                        if ($environment === 'sandbox') {
-                            $url = 'https://sandbox.fedapay.com/webhooks';
-                        } else {
-                            $url = 'https://live.fedapay.com/webhooks';
-                        }
-                        echo sprintf(__('Here is your Webhook URL for reference. You should set this in your FedaPay dashboard <a href="%s" target="_blank">here</a>.', 'pmpro-fedapay-gateway'), $url);
+                    if ($environment === 'sandbox') {
+                        $url = 'https://sandbox.fedapay.com/webhooks';
+                    } else {
+                        $url = 'https://live.fedapay.com/webhooks';
+                    }
+                    echo sprintf(__('Here is your Webhook URL for reference. You should set this in your FedaPay dashboard <a href="%s" target="_blank">here</a>.', 'pmpro-fedapay-gateway'), $url);
                     ?>
                     <pre><?php echo add_query_arg('action', 'fedapay_webhook', admin_url('admin-ajax.php')); ?></pre>
                 </p>
@@ -293,13 +293,90 @@ class PMProGateway_fedapay extends PMProGateway
         $morder->Gateway->process_payment($morder);
     }
 
+    private static function pmpro_webhook_change_membership_level(&$morder)
+    {
+        //filter for level
+        $morder->membership_level = apply_filters("pmpro_ipnhandler_level", $morder->membership_level, $morder->user_id);
+
+        //set the start date to current_time('timestamp') but allow filters  (documented in preheaders/checkout.php)
+        $startdate = apply_filters("pmpro_checkout_start_date", "'" . current_time('mysql') . "'", $morder->user_id, $morder->membership_level);
+
+        //fix expiration date
+        if (!empty($morder->membership_level->expiration_number)) {
+            $enddate = "'" . date_i18n('Y-m-d', strtotime('+ ' . $morder->membership_level->expiration_number . ' ' . $morder->membership_level->expiration_period, current_time('timestamp'))) . "'";
+        } else {
+            $enddate = 'NULL';
+        }
+
+        //filter the enddate (documented in preheaders/checkout.php)
+        $enddate = apply_filters("pmpro_checkout_end_date", $enddate, $morder->user_id, $morder->membership_level, $startdate);
+
+        //get discount code
+        $morder->getDiscountCode();
+        if (!empty($morder->discount_code)) {
+            //update membership level
+            $morder->getMembershipLevel(true);
+            $discount_code_id = $morder->discount_code->id;
+        } else {
+            $discount_code_id = "";
+        }
+
+        //custom level to change user to
+        $custom_level = array(
+            'user_id'         => $morder->user_id,
+            'membership_id'   => $morder->membership_level->id,
+            'code_id'         => $discount_code_id,
+            'initial_payment' => $morder->membership_level->initial_payment,
+            'billing_amount'  => $morder->membership_level->billing_amount,
+            'cycle_number'    => $morder->membership_level->cycle_number,
+            'cycle_period'    => $morder->membership_level->cycle_period,
+            'billing_limit'   => $morder->membership_level->billing_limit,
+            'trial_amount'    => $morder->membership_level->trial_amount,
+            'trial_limit'     => $morder->membership_level->trial_limit,
+            'startdate'       => $startdate,
+            'enddate'         => $enddate
+        );
+
+        //change level and continue "checkout"
+        if (pmpro_changeMembershipLevel($custom_level, $morder->user_id, 'changed') !== false) {
+            //update order status and transaction ids
+            $morder->status = 'success';
+            $morder->saveOrder();
+
+            //hook
+            do_action('pmpro_after_checkout', $morder->user_id, $morder);
+
+            //setup some values for the emails
+            if (!empty($morder)) {
+                $invoice = new MemberOrder($morder->id);
+            } else {
+                $invoice = null;
+            }
+
+            $user = get_userdata($morder->user_id);
+            $user->membership_level = $morder->membership_level; // Make sure they have the right level info
+
+            //send email to member
+            $pmproemail = new PMProEmail();
+            $pmproemail->sendCheckoutEmail($user, $invoice);
+
+            //send email to admin
+            $pmproemail = new PMProEmail();
+            $pmproemail->sendCheckoutAdminEmail($user, $invoice);
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public function process(&$order)
     {
         if (empty($order->code))
             $order->code = $order->getRandomCode();
 
         //clean up a couple values
-        $order->payment_type = "FedaPay Standard";
+        $order->payment_type = "FedaPay";
         $order->CardType = "";
         $order->cardtype = "";
 
@@ -307,24 +384,6 @@ class PMProGateway_fedapay extends PMProGateway
         $order->status = "review";
         $order->saveOrder();
 
-        return true;
-    }
-
-    /*
-     * Make a charge at the gateway.
-     * Required to charge initial payments.
-     */
-    public function charge(&$order)
-    {
-        //create a code for the order
-        if (empty($order->code))
-            $order->code = $order->getRandomCode();
-
-        //code to charge with gateway and test results would go here
-
-        //simulate a successful charge
-        $order->payment_transaction_id = "TEST" . $order->code;
-        $order->updateStatus("success");
         return true;
     }
 
@@ -388,7 +447,6 @@ class PMProGateway_fedapay extends PMProGateway
             $errorMessage = $this->fedapayError($e);
             $order->error = $errorMessage;
             $order->shorterror = $errorMessage;
-            die($errorMessage);
             return false;
         }
     }
@@ -402,11 +460,15 @@ class PMProGateway_fedapay extends PMProGateway
         $event = json_decode($body, false);
 
         if ($event->name === 'transaction.approved') {
-            $order = self::get_order_by_event($event);
+            $morder = self::get_order_by_event($event);
 
-            if(!empty($order->id)) {
-                $order->status = 'success';
-                $order->saveOrder();
+            if (!empty($morder->id)) {
+
+                //get some more order info
+                $morder->getMembershipLevel();
+                $morder->getUser();
+
+                self::pmpro_webhook_change_membership_level($morder);
             }
         }
     }
