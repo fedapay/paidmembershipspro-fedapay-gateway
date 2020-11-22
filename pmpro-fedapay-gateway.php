@@ -19,6 +19,7 @@
 
 define("PMPRO_FEDAPAY_GATEWAY_VERWION", '0.1.0');
 define("PMPRO_FEDAPAY_GATEWAY_DIR", dirname(__FILE__));
+define('PMPRO_FEDAPAY_WEBHOOK_DELAY', 2);
 
 //load payment gateway class
 require_once(PMPRO_FEDAPAY_GATEWAY_DIR . '/includes/class-pmpro-fedapay-gateway.php');
