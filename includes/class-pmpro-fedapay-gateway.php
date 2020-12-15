@@ -288,7 +288,7 @@ class PMProGateway_fedapay extends PMProGateway
         $morder->user_id = $user_id;
         $morder->saveOrder();
 
-        do_action("pmpro_before_send_to_fedapay", $user_id, $morder);
+        do_action('pmpro_before_send_to_fedapay', $user_id, $morder);
 
         $morder->Gateway->process_payment($morder);
     }
@@ -419,7 +419,7 @@ class PMProGateway_fedapay extends PMProGateway
         $callback_url = add_query_arg('level', $order->membership_level->id, pmpro_url('confirmation'));
 
         if ($pmpro_currency !== 'XOF') {
-            $error = __("FedaPay only supports XOF as currency for now. Please select XOF currrency or contact the store manager.", 'woo-gateway-fedapay');
+            $error = __("FedaPay only supports XOF as currency for now. Please select XOF currrency or contact the store manager.", 'pmpro-fedapay-gateway');
             $order->error = $error;
             $order->shorterror = $error;
             return false;
