@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: Paid Memberships Pro FedaPay Gateway
- * Plugin URI: https://wordpress.org/plugins/pmpro-gateway-fedapay/
+ * Plugin Name: FedaPay Gateway for Paid Memberships Pro
+ * Plugin URI: https://wordpress.org/plugins/pmpro-fedapay-gateway/
  * Description: Take credit card and mobile money payments from your members using Fedapay.
  * Author: Fedapay
  * Author URI: https://fedapay.com/

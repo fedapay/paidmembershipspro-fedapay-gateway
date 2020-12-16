@@ -1,4 +1,4 @@
-=== Paid Memberships Pro: Pay by FedaPay Add On ===
+=== FedaPay Gateway for Paid Memberships Pro ===
 Contributors: fedapay
 Tags: pmpro, paid memberships pro, members, memberships, credit card, fedapay, mobile money
 Requires at least: 4
