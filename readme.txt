@@ -4,7 +4,7 @@ Tags: pmpro, paid memberships pro, members, memberships, credit card, fedapay, m
 Requires at least: 4
 Tested up to: 5.5.3
 Requires PHP: 5.6
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,9 @@ For help setting up and configuring, please refer to our [user guide](https://do
 If you get stuck, you can ask for help in the Plugin Forum.
 
 == Changelog ==
+
+= 0.1.1 =
+* Deploy on Worspress plugin directory
 
 = 0.1.0 =
 * Beta release

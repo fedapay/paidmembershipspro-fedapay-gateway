@@ -1,4 +1,7 @@
 *** Changelog ***
 
+= 0.1.1 =
+* Deploy on Worspress plugin directory
+
 = 0.1.0 =
 * Beta release
